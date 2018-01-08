@@ -132,10 +132,21 @@ confMatGBM
 ```
 An accuracy score of 96.04% was achieved for the testing subset. The model was significantly quicker converging than the Random Forest, but less accurate.
 
-###Applying selected model to test data
+##Applying selected model to test data
 
-As computational time is not an important factor for this assignment, the most accurate prediction model, Random Forest, will be used to predict the answers to the testing data set. The prediction was applied and a data frame of problemID and predicted answer displayed.
+As computational time is not an important factor for this assignment, the most accurate prediction model, Random Forest, will be used to predict the answers to the testing data set. 
 
+###Estimating Out of Sample Error
+Before applying this model, out of sample error should be estimated by cross validation for the Random Forest model.
+```{r outofsample}
+outerror<-(1-sum(predict_rforest==testSubs$classe)/length(predict_rforest))
+outerror
+```
+This error is small, so there is no need to be concerned about over-fitting of this model to the training data
+
+###Solution
+
+The prediction was applied and a data frame of problemID and predicted answer displayed.
 ```{r}
 predict_test<-predict(model_rforest, newdata=testing,method="class")
 answer<-data.frame(ProbID=(1:20), Prediction=predict_test)

@@ -301,9 +301,21 @@ confMatGBM</code></pre>
 ## Balanced Accuracy      0.9836   0.9645   0.9706   0.9755   0.9834</code></pre>
 <p>An accuracy score of 96.04% was achieved for the testing subset. The model was significantly quicker converging than the Random Forest, but less accurate.</p>
 </div>
-<div id="applying-selected-model-to-test-data" class="section level3">
-<h3>Applying selected model to test data</h3>
-<p>As computational time is not an important factor for this assignment, the most accurate prediction model, Random Forest, will be used to predict the answers to the testing data set. The prediction was applied and a data frame of problemID and predicted answer displayed.</p>
+</div>
+<div id="applying-selected-model-to-test-data" class="section level2">
+<h2>Applying selected model to test data</h2>
+<p>As computational time is not an important factor for this assignment, the most accurate prediction model, Random Forest, will be used to predict the answers to the testing data set.</p>
+<div id="estimating-out-of-sample-error" class="section level3">
+<h3>Estimating Out of Sample Error</h3>
+<p>Before applying this model, out of sample error should be estimated by cross validation for the Random Forest model.</p>
+<pre class="r"><code>outerror&lt;-(1-sum(predict_rforest==testSubs$classe)/length(predict_rforest))
+outerror</code></pre>
+<pre><code>## [1] 0.007816483</code></pre>
+<p>This error is small, so there is no need to be concerned about over-fitting of this model to the training data</p>
+</div>
+<div id="solution" class="section level3">
+<h3>Solution</h3>
+<p>The prediction was applied and a data frame of problemID and predicted answer displayed.</p>
 <pre class="r"><code>predict_test&lt;-predict(model_rforest, newdata=testing,method=&quot;class&quot;)
 answer&lt;-data.frame(ProbID=(1:20), Prediction=predict_test)
 answer</code></pre>
