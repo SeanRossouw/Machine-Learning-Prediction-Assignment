@@ -1,0 +1,144 @@
+---
+title: "Machine Learning _ Prediction Assignment"
+author: "Sean"
+date: "January 3, 2018"
+output: html_document
+---
+```{r include=FALSE}
+library(caret)
+library(dplyr)
+library(rpart)
+library(rpart.plot)
+set.seed(500)
+```
+##Summary
+
+Three prediction models were generated and tested from the UCI HAR dataset to predict activity type based on recorded sensor data. The models were tested internally and the most accurate applied to a set of testing data with an unknown activity type to predict what action the subjects were performing.
+
+##Loading and Processing data
+
+The data used for this analysis can be found at:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+This data is originally from the following source:
+http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har
+
+
+The two datasets were downloaded, saved in the working directory and loaded into R
+```{r }
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv" , destfile = "pml-traininig.csv")
+training <- read.csv("pml-traininig.csv")
+
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",destfile = "pml-testing.csv")
+testing  <- read.csv("pml-testing.csv")
+
+
+```
+
+First the initial seven data columns were removed as they contain only indentifying data that should not have any effect on prediction accuracy for the purpose of this analysis.
+
+To remove empty columns and those with small variation, suspected to have little to no effect on prediction, the nearZeroValue function from the 'Caret' package was used to generate a list and remove the same list from both training and test sets. All NA's were replaced with 0 values
+
+A check was performed to ensure the testing and training sets contained the same columns.
+```{r Data}
+
+testing <- testing[, -c(1:7)]
+training <- training[, -c(1:7)]
+testing[is.na(testing)] <- 0
+training[is.na(training)] <- 0
+
+NZVremove <- nearZeroVar(training)
+training <- training[, -NZVremove]
+testing  <- testing[, -NZVremove]
+
+dim(testing)
+dim(training)
+
+
+setdiff(colnames(testing), colnames(training))
+setdiff(colnames(training), colnames(testing))
+
+class(testing$problem_id)
+class(training$classe)
+
+```
+
+The column difference between the two datasets is due to knowing the activity identity for the training data, but not knowing that of the test set
+
+##Subsetting and Exploratory Analysis
+
+To test the accuracy of the predictions we cannot use the test data set, as we do not know the true values. Instead, training must be further subsetted into training and test cases to compare models, and the best performing one used on the original test dataset. A 70/30 split was used to subset training and testing data
+```{r Subset}
+training <- training[complete.cases(training),]
+
+subs  <- createDataPartition(training$classe, p=0.7, list=FALSE)
+trainSubs <- training[subs, ]
+testSubs <- training[-subs, ]
+
+```
+
+##Building Prediction Models
+
+### Decision Tree
+
+The first approach is via Decision Tree. If a few variables contribute most significantly to the outcome, a decision tree will show this visually and can be a good basis for fast modelling and prediction.
+
+
+```{r DT}
+
+model_tree<-rpart(classe ~ ., method="class", data=trainSubs)
+rpart.plot(model_tree, main="Decision Tree")
+
+predict_tree <- predict(model_tree, newdata=testSubs, type="class")
+
+confMatTree <- confusionMatrix(predict_tree, testSubs$classe)
+confMatTree
+```
+As can be seen by the figure, the decision tree is complicated and has many forks, with the same output being predicted by multiple branch paths. As is expected the accuracy is lower at 72.7% than is desirable
+
+### Random Forest
+
+Random forest is the next model investigated. As an extension of Decision Tree, the accuracy is expected to be better but computational time increased significantly. trControl was used to specify model parameters, as left unsupervised with so many variables could lead to an overly complex model for very little benefit.
+
+```{r RF}
+
+
+controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+model_rforest <- train(classe ~ ., data=trainSubs, method="rf",trControl=controlRF)
+
+predict_rforest <- predict(model_rforest, newdata=testSubs,method="class")
+confMatForest <- confusionMatrix(predict_rforest, testSubs$classe)
+confMatForest
+
+```
+
+This model was found to have 99.3% accuracy for the test subset
+
+### Generalised Boosted Model
+
+Finally, a boosting model was attempted. trControl was again used and the parameters given were found to have a good accuracy/time ratio.
+
+```{r GBM1, results="hide"}
+controlGBM <- trainControl(method = "repeatedcv", number = 5, repeats = 1, verbose = FALSE)
+model_GBM  <- train(classe ~ ., data=trainSubs, method = "gbm",trControl = controlGBM)
+```
+
+```{r GBM2}
+predict_GBM <- predict(model_GBM, newdata=testSubs,method="class")
+confMatGBM <- confusionMatrix(predict_GBM, testSubs$classe)
+confMatGBM
+
+```
+An accuracy score of 96.04% was achieved for the testing subset. The model was significantly quicker converging than the Random Forest, but less accurate.
+
+###Applying selected model to test data
+
+As computational time is not an important factor for this assignment, the most accurate prediction model, Random Forest, will be used to predict the answers to the testing data set. The prediction was applied and a data frame of problemID and predicted answer displayed.
+
+```{r}
+predict_test<-predict(model_rforest, newdata=testing,method="class")
+answer<-data.frame(ProbID=(1:20), Prediction=predict_test)
+answer
+
+```
